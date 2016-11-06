@@ -1,11 +1,14 @@
 <script type='text/json' id='input'>
-  {{ input }}
+    {{input }}
 </script>
-<form id='results-form' method='post' action='dummy' class='text-center'>
-  <input type='hidden' value='' name='assignmentId' id='assignmentId'/>
-  <input type='hidden' value='' name='output' id='output'/>
-  <input type='submit' class='btn btn-lg btn-success' id='submit-btn' value='Submit' disabled/>
+
+<form id='results-form' method='post' action='dummy' accept-charset="utf-8" enctype="application/x-www-form-urlencoded" class='text-center'>
+
+    <input type='hidden' value='' name='assignmentId' id='assignmentId' />
+    <input type='hidden' value='hello' name='output' id='output' />
+    <input type='submit' class='btn btn-lg btn-success' name="commit" value="submit" id='submit-btn' disabled/>
 </form>
+
 <script>
     var simpleamt = (function() {
 
@@ -26,18 +29,25 @@
 
         function setOutput(output) {
             $('#output').val(JSON.stringify(output));
+
         }
 
         function isPreview() {
             var assignment_id = getUrlParam('assignmentId');
-            if (assignment_id === null) return false;
+            if (assignment_id === null)
+              return false;
             return assignment_id == 'ASSIGNMENT_ID_NOT_AVAILABLE';
         }
 
         function setupSubmit() {
             var submit_to = getUrlParam('turkSubmitTo');
-            $('#results-form').attr('action', submit_to + '/mturk/externalSubmit');
-            $('#assignmentId').val(getUrlParam('assignmentId'));
+            var action = submit_to + '/mturk/externalSubmit';
+            var assignment_id = getUrlParam('assignmentId');
+
+            $('#results-form').attr('action', action);
+            $('#assignmentId').val(assignment_id);
+            console.log("assignmentId="+assignment_id);
+            console.log("action="+action);
         }
 
         return {

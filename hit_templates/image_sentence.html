@@ -157,19 +157,13 @@
                 // Set up submit handler.
                 simpleamt.setupSubmit();
                 $('#submit-btn').click(function() {
-                    descriptions[idx] = $('#text-area').val();
-                    if (_.any(descriptions, function(d) {
-                            return d.length < 5;
-                        })) {
-                        alert('Descriptions not long enough. Correct before submitting.');
-                        return false;
+                    var output = [];
+                    for (var i = 0; i < input.length; i++) {
+                      output.push({
+                        "url": input[i],
+                        "text": descriptions[i]
+                      });
                     }
-                    var output = _.map(_.zip(input, descriptions), function(x) {
-                        return {
-                            'image_url': x[0],
-                            'description': x[1]
-                        };
-                    });
                     simpleamt.setOutput(output);
                 });
             }
