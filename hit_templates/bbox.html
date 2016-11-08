@@ -219,11 +219,11 @@
                                 style: { "stroke": strokeColor, "fill": this.fillColor, "stroke-width": 2, "cursor": this.cursor } }),
 
                     // close handle
-                    h("image", { attrs: { "width": 20,
-                                          "height": 20,
+                    h("image", { attrs: { "width": 16,
+                                          "height": 16,
                                           "xlink:href": "https://cdn1.iconfinder.com/data/icons/ui-navigation-1/152/close-128.png",
-                                          "x": this.real.x + this.real.width - 10,
-                                          "y": this.real.y - 10
+                                          "x": this.real.x + this.real.width - 8,
+                                          "y": this.real.y - 8
                                         },
                                  style: { "cursor": "pointer" },
                                  on: { click: this.onDelete }
