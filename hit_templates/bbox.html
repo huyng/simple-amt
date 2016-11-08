@@ -6,96 +6,325 @@
     <script src="//cdnjs.cloudflare.com/ajax/libs/vue/2.0.5/vue.js" charset="utf-8"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/skeleton/2.0.4/skeleton.min.css">
     <style media="screen">
-      .container {
-        max-width: 1024px;
-      }
+        .container {
+            max-width: 1024px;
+        }
     </style>
 </head>
 
 <body>
     <br>
-    <div class='container'>
-      <h3>draw boxes around the matching items</h3>
-      <div class="row">
-        <div class="two columns">
-          <h6>find the item below</h6>
-          <center><img style="max-width:100px; max-height:100px; border: 1px solid #ddd" src="http://ecx.images-amazon.com/images/I/21Pd3+4L8HL._AC_UL160_SR160,160_.jpg" alt="" /></center>
+
+    <div id="app" class='container'>
+        <h3>draw boxes around the matching items</h3>
+        <div class="row">
+            <div class="two columns">
+                <h6>find the item below</h6>
+                <center><img style="max-width:100px; max-height:100px; border: 1px solid #ddd" v-bind:src="prototypeImageUrl" alt="" /></center>
+            </div>
+            <div class="ten columns">
+                <h6>in this image <b>&#8681;</b> and draw boxes around the matching items</h6>
+                <annotated-image v-bind:url="mainImageUrl" v-bind:annotations="annotations" ></annotated-image>
+                <br>
+                <br>
+                <button type="button" name="button" v-on:click="addBox">Add box</button>
+            </div>
         </div>
-        <div class="ten columns">
-          <h6>in this image <bold>&#8681;</bold> and draw boxes around the matching items</h6>
-          <img style="max-width:100%" src="http://media.ussportscamps.com/assets/camps/soccer/slideshow/nike-soccer-camps-ucsc-18.jpg" alt="" />
-          <br>
-          <br>
-          <button type="button" name="button">Add box</button>
-          {% include "simpleamt.html" %}
-        </div>
-      </div>
-      <br>
-      <br>
+        <br>
+        <br>
     </div>
 
+                {% include "simpleamt.html" %}
 
     <script>
-        $(function() {
-            // Define default input to be used when developing this HIT.
-            var DEFAULT_INPUT = {
-                category: 'dog'
-            };
-
-            function main() {
-                // Read input to the HIT. In development the default input will be
-                // used, and in deployment actual input will be used.
-                var input = simpleamt.getInput(DEFAULT_INPUT);
-
-                // Use the input to set up the UI.
-                $('span.category').text(input.category);
-
-                // If the HIT is not in preview mode, then we need to enable the UI
-                // and set up the logic for submitting.
-                if (!simpleamt.isPreview()) {
-                    enable_ui();
-
-                    // You need to call this in every HIT; if you forget then you will
-                    // get an error message when you try and submit the HIT.
-                    simpleamt.setupSubmit();
-
-                    // Set up a click handler for the submit button.
-                    // Typically this will validate user output and either submit the
-                    // HIT if the data is good or show an error message to the user if
-                    // the data is bad. If this click handler returns false then the
-                    // HIT will not be submitted.
-                    // WARNING: If the click handler throws an exception
-                    // then by default the HIT will be submitted; this is a fertile
-                    // source of bugs.
-                    $('#submit-btn').click(function() {
-                        // Construct an object containing the output of this assignment.
-                        var output = {
-                            category: input.category,
-                            example: $('#text-answer').val(),
-                        };
-
-                        // Validate the output
-                        if (output.example.length < 3) {
-                            alert('Your answer is not long enough');
-                            return false;
-                        } else {
-                            simpleamt.setOutput(output);
-                        }
-                    })
+        Vue.component('editable-bbox', {
+            props: ["x", "y", "width", "height"],
+            data: function() {
+                return {
+                    active: false,
+                    dragging: false,
+                    dragStartRegion: null,
+                    mousepos: {x: null, y:null},
+                    prevpos: {x:null, y:null},
+                    real: {
+                        x:this.x,
+                        y:this.y,
+                        width:this.width,
+                        height:this.height
+                    }
                 }
+            },
+            computed: {
+                cursor: function() {
+                    if(!this.active || this.mousepos.y === null || this.mousepos.x === null) {
+                        return "pointer";
+                    }
+                    var region = this.getRegion(this.mousepos.x, this.mousepos.y);
+                    if (region === "interior") {
+                        return "move";
+                    } else {
+                        return region + "-resize";
+                    }
+                },
+                fillColor: function() {
+                    if (this.active) {
+                        return "rgba(0,255,0,.3)";
+                    } else {
+                        return "rgba(0,255,0,.0)";
+                    }
+                },
+            },
+            methods: {
+                onDelete: function(event){
+                    event.stopPropagation();
+                    event.preventDefault();
+                    console.log("delete");
+                },
+                onDragStart: function(event){
+                    event.stopPropagation();
+                    event.preventDefault();
+                    console.log("dragging start");
+                    this.prevpos.x = event.clientX;
+                    this.prevpos.y = event.clientY;
+                    this.dragging = true;
+                    this.dragStartRegion = this.getRegion(this.mousepos.x, this.mousepos.y);
+
+                },
+                onDrag: function(event) {
+                    var dx = event.clientX - this.prevpos.x;
+                    var dy = event.clientY - this.prevpos.y;
+                    this.prevpos.x = event.clientX;
+                    this.prevpos.y = event.clientY;
+                    var region = this.dragStartRegion;
+                    if (region === "interior") {
+                        this.real.x += dx;
+                        this.real.y += dy;
+                    }
+                    else if (region == "se") {
+                        this.real.width += dx;
+                        this.real.height += dy;
+                    }
+                    else if (region == "s") {
+                        this.real.height += dy;
+                    }
+                    else if (region == "se") {
+                        this.real.x += dx;
+                        this.real.height += dy;
+                    }
+                    else if (region == "w") {
+                        this.real.x += dx;
+                        this.real.width -= dx;
+                    }
+                    else if (region == "e") {
+                        this.real.width += dx;
+                    }
+                    else if (region == "n") {
+                        this.real.y += dy;
+                        this.real.height -= dy;
+                    }
+                    else if (region == "nw") {
+                        this.real.x += dx;
+                        this.real.width -= dx;
+                        this.real.y += dy;
+                        this.real.height -= dy;
+                    }
+                },
+                onDragEnd: function(event) {
+                    console.log("dragging end");
+                    this.dragging = false;
+                    this.prevpos.x = null;
+                    this.prevpos.y = null;
+                },
+                onClick: function(event) {
+
+                },
+                onMouseMove: function(event) {
+                    var offset = $(event.target).offset();
+                    this.mousepos.x = event.pageX - offset.left;
+                    this.mousepos.y = event.pageY - offset.top;
+                    this.active = true;
+                    console.log(this.dragging);
+                    if (this.dragging) {
+                        this.onDrag.apply(this, [event]);
+                    }
+                    return true;
+                },
+                onMouseLeave: function(event) {
+                    var offset = $(event.target).offset();
+                    this.mousepos.x = event.pageX - offset.left;
+                    this.mousepos.y = event.pageY - offset.top;
+                    this.active = false;
+                    this.dragging = false;
+                },
+                getRegion: function(x, y) {
+                    if (x < 16 && y < 16) {
+                        return "nw";
+                    }
+                    else if (x < 16 && y > this.real.height - 16) {
+                        return "sw";
+                    }
+                    else if (x < 16 && y <= this.real.height - 16 && y >= 16) {
+                        return "w";
+                    }
+                    else if (x > this.real.width - 16 && y < 16) {
+                        return "ne";
+                    }
+                    else if (x > this.real.width - 16 && y > this.real.height - 16) {
+                        return "se";
+                    }
+                    else if (x > this.real.width - 16 && y <= this.real.height - 16 && y >= 16) {
+                        return "e";
+                    }
+                    else if (x >= 16 && x <= this.real.width - 16 && y < 16) {
+                        return "n";
+                    }
+                    else if (x >= 16 && x <= this.real.width - 16 && y > this.real.height - 16) {
+                        return "s";
+                    }
+                    else {
+                        return "interior";
+                    }
+                }
+
+            },
+            created: function() {
+                this.$watch("x", function(newval, oldval){
+                    this.real.x = newval;
+                }.bind(this));
+                this.$watch("y", function(newval, oldval){
+                    this.real.y = newval;
+                }.bind(this));
+                this.$watch("width", function(newval, oldval){
+                    this.real.width = newval;
+                }.bind(this));
+                this.$watch("height", function(newval, oldval){
+                    this.real.height = newval;
+                }.bind(this));
+
+            },
+            render: function(h) {
+                var strokeColor = "rgba(0,255,0, .8)";
+                var rects = [
+                    // shadow rect to increase size of bbox
+                    h("rect", { attrs: { "x": this.real.x - 10,
+                                         "y": this.real.y - 10,
+                                         "height": this.real.height + 20,
+                                         "width": this.real.width  + 20},
+                                style: { "stroke": "rgba(0,0,0,0)",
+                                         "fill": "rgba(0,0,0,0)",
+                                         "stroke-width": 2,
+                                         "cursor": this.cursor } }),
+                    // bbox
+                    h("rect", { attrs: { "x": this.real.x, "y": this.real.y, "height": this.real.height, "width": this.real.width },
+                                style: { "stroke": strokeColor, "fill": this.fillColor, "stroke-width": 2, "cursor": this.cursor } }),
+
+                    // close handle
+                    h("image", { attrs: { "width": 20,
+                                          "height": 20,
+                                          "xlink:href": "https://cdn1.iconfinder.com/data/icons/ui-navigation-1/152/close-128.png",
+                                          "x": this.real.x + this.real.width - 10,
+                                          "y": this.real.y - 10
+                                        },
+                                 style: { "cursor": "pointer" },
+                                 on: { click: this.onDelete }
+                               }),
+                ];
+                return h("g",
+                         {on: { mousemove: this.onMouseMove, mouseleave: this.onMouseLeave, click: this.onClick,
+                                 mousedown: this.onDragStart, mouseup: this.onDragEnd }},
+                         rects);
             }
-
-            function enable_ui() {
-                // Enable the UI specific to our HIT.
-                $('#text-answer').prop('disabled', false);
-
-                // Enable the submit button. You must do this in every HIT.
-                $('#submit-btn').prop('disabled', false);
-            }
-
-            main();
-
         });
+
+        Vue.component('annotated-image', {
+            props: {
+                "url": String,
+                "annotations": {
+                    default: function() {
+                        return []
+                    }
+                },
+                "showlabels": Boolean
+            },
+
+            data: function() {
+                return {
+                    image_height: 0,
+                    image_width: 0,
+                };
+            },
+
+            computed: {
+                bboxes: function() {
+                    return this.annotations.map(function(a) {
+                        var copy = Object.assign({}, a);
+                        if (a.x0 !== undefined) {
+                            copy.x = a.x0 * this.image_width;
+                            copy.y = a.y0 * this.image_height;
+                            copy.width = (a.x1 - a.x0) * this.image_width;
+                            copy.height = (a.y1 - a.y0) * this.image_height;
+                        } else if (a.x !== undefined) {
+                            copy.x *= this.image_width;
+                            copy.y *= this.image_height;
+                            copy.width *= this.image_width;
+                            copy.height *= this.image_height;
+                        }
+                        return copy;
+                    }.bind(this));
+                }
+            },
+
+            mounted: function(el) {
+                this.$el.getElementsByTagName("img")[0].onload = function(event) {
+                    this.image_height = event.target.clientHeight;
+                    this.image_width = event.target.clientWidth;
+                }.bind(this);
+            },
+
+            render: function(h) {
+                var annos = this.bboxes.map(function(b) {
+                    return h("editable-bbox", {props: {x:b.x, y:b.y, width:b.width, height:b.height}});
+                }.bind(this));
+
+                return h("div", {"style": { "position": "relative" }}, [
+                    h("img", {
+                        style: {
+                            "position": "relative",
+                            "max-width": "100%",
+                            "max-height": "800px",
+                            "top": 0,
+                            "left": 0
+                        },
+                        attrs: {
+                            "src": this.url
+                        }
+                    }),
+                    h("svg", {
+                        "style": {
+                            "position": "absolute",
+                            "width": this.image_width,
+                            "height": this.image_height,
+                            "top": 0,
+                            "left": 0
+                        }
+                    },
+                    annos),
+                ]);
+            }
+        });
+        var app = new Vue({
+            el: "#app",
+            methods: {
+                addBox: function() {
+                    this.annotations.push({x: Math.random(), y: Math.random(), width: Math.random(), height: Math.random()});
+                }
+            },
+            data: {
+                mainImageUrl: "http://media.ussportscamps.com/assets/camps/soccer/slideshow/nike-soccer-camps-ucsc-18.jpg",
+                prototypeImageUrl: "http://ecx.images-amazon.com/images/I/21Pd3+4L8HL._AC_UL160_SR160,160_.jpg",
+                annotations: [{"x": .20, "y": .30, "width": .2, "height": .2}]
+            }
+        })
     </script>
 </body>
 
