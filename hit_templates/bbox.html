@@ -24,39 +24,54 @@
             </div>
             <div class="ten columns">
                 <h6>in this image <b>&#8681;</b> and draw boxes around the matching items</h6>
-                <annotated-image v-bind:url="mainImageUrl" v-bind:annotations="annotations" ></annotated-image>
+                <annotated-image v-on:delete-annotation="onDeleteAnnotation" v-on:click="addAnnotation" v-bind:url="mainImageUrl" v-bind:annotations="annotations"></annotated-image>
                 <br>
                 <br>
-                <button type="button" name="button" v-on:click="addBox">Add box</button>
+                <button type="button" name="button" v-on:click="addAnnotation">Add box</button>
+                <form id='results-form' method='post' action='dummy' accept-charset="utf-8" enctype="application/x-www-form-urlencoded" class='text-center'>
+                    <input type='hidden' value='' name='assignmentId' id='assignmentId' />
+                    <input type='hidden' value='hello' name='output' id='output' />
+                    <input type='submit' class='btn btn-lg btn-success' name="commit" value="submit" id='submit-btn' disabled/>
+                </form>
+
             </div>
         </div>
         <br>
         <br>
     </div>
 
-                {% include "simpleamt.html" %}
+    {% include "simpleamtjs.html" %}
 
     <script>
         Vue.component('editable-bbox', {
-            props: ["x", "y", "width", "height"],
+            props: ["x", "y", "width", "height", "index", "mostrecentadded", "interactive"],
             data: function() {
                 return {
                     active: false,
                     dragging: false,
                     dragStartRegion: null,
-                    mousepos: {x: null, y:null},
-                    prevpos: {x:null, y:null},
+                    mousepos: {
+                        x: null,
+                        y: null
+                    },
+                    prevpos: {
+                        x: null,
+                        y: null
+                    },
                     real: {
-                        x:this.x,
-                        y:this.y,
-                        width:this.width,
-                        height:this.height
-                    }
+                        x: this.x,
+                        y: this.y,
+                        width: this.width,
+                        height: this.height
+                    },
+                    justadded: this.mostrecentadded,
+
+
                 }
             },
             computed: {
                 cursor: function() {
-                    if(!this.active || this.mousepos.y === null || this.mousepos.x === null) {
+                    if (!this.active || this.mousepos.y === null || this.mousepos.x === null) {
                         return "pointer";
                     }
                     var region = this.getRegion(this.mousepos.x, this.mousepos.y);
@@ -75,54 +90,61 @@
                 },
             },
             methods: {
-                onDelete: function(event){
+                onDelete: function(event) {
                     event.stopPropagation();
+                    event.stopImmediatePropagation();
                     event.preventDefault();
                     console.log("delete");
+                    this.$nextTick(function(){
+                        this.$emit("delete", this);
+                    }.bind(this))
+
                 },
-                onDragStart: function(event){
+                onDragStart: function(event) {
                     event.stopPropagation();
+                    event.stopImmediatePropagation();
                     event.preventDefault();
                     console.log("dragging start");
                     this.prevpos.x = event.clientX;
                     this.prevpos.y = event.clientY;
                     this.dragging = true;
                     this.dragStartRegion = this.getRegion(this.mousepos.x, this.mousepos.y);
-
                 },
                 onDrag: function(event) {
+                    console.log(this.prevpos.x);
+                    if (this.prevpos.x == null) {
+                        this.prevpos.x = event.clientX;
+                        this.prevpos.y = event.clientY;
+                        this.dragStartRegion = "se";
+                        this.dragging = true;
+                    }
+                    var region = this.dragStartRegion;
                     var dx = event.clientX - this.prevpos.x;
                     var dy = event.clientY - this.prevpos.y;
                     this.prevpos.x = event.clientX;
                     this.prevpos.y = event.clientY;
-                    var region = this.dragStartRegion;
+
                     if (region === "interior") {
                         this.real.x += dx;
                         this.real.y += dy;
-                    }
-                    else if (region == "se") {
+                    } else if (region == "se") {
                         this.real.width += dx;
                         this.real.height += dy;
-                    }
-                    else if (region == "s") {
+                    } else if (region == "s") {
                         this.real.height += dy;
-                    }
-                    else if (region == "se") {
-                        this.real.x += dx;
-                        this.real.height += dy;
-                    }
-                    else if (region == "w") {
+                    } else if (region == "sw") {
                         this.real.x += dx;
                         this.real.width -= dx;
-                    }
-                    else if (region == "e") {
+                        this.real.height += dy;
+                    } else if (region == "w") {
+                        this.real.x += dx;
+                        this.real.width -= dx;
+                    } else if (region == "e") {
                         this.real.width += dx;
-                    }
-                    else if (region == "n") {
+                    } else if (region == "n") {
                         this.real.y += dy;
                         this.real.height -= dy;
-                    }
-                    else if (region == "nw") {
+                    } else if (region == "nw") {
                         this.real.x += dx;
                         this.real.width -= dx;
                         this.real.y += dy;
@@ -132,72 +154,59 @@
                 onDragEnd: function(event) {
                     console.log("dragging end");
                     this.dragging = false;
+                    this.active = false;
                     this.prevpos.x = null;
                     this.prevpos.y = null;
-                },
-                onClick: function(event) {
-
                 },
                 onMouseMove: function(event) {
                     var offset = $(event.target).offset();
                     this.mousepos.x = event.pageX - offset.left;
                     this.mousepos.y = event.pageY - offset.top;
                     this.active = true;
-                    console.log(this.dragging);
-                    if (this.dragging) {
+
+                    if (this.dragging || (this.justadded && this.interactive)) {
                         this.onDrag.apply(this, [event]);
+                        this.justadded = false;
                     }
                     return true;
                 },
                 onMouseLeave: function(event) {
-                    var offset = $(event.target).offset();
-                    this.mousepos.x = event.pageX - offset.left;
-                    this.mousepos.y = event.pageY - offset.top;
                     this.active = false;
-                    this.dragging = false;
                 },
                 getRegion: function(x, y) {
                     if (x < 16 && y < 16) {
                         return "nw";
-                    }
-                    else if (x < 16 && y > this.real.height - 16) {
+                    } else if (x < 16 && y > this.real.height - 16) {
                         return "sw";
-                    }
-                    else if (x < 16 && y <= this.real.height - 16 && y >= 16) {
+                    } else if (x < 16 && y <= this.real.height - 16 && y >= 16) {
                         return "w";
-                    }
-                    else if (x > this.real.width - 16 && y < 16) {
+                    } else if (x > this.real.width - 16 && y < 16) {
                         return "ne";
-                    }
-                    else if (x > this.real.width - 16 && y > this.real.height - 16) {
+                    } else if (x > this.real.width - 16 && y > this.real.height - 16) {
                         return "se";
-                    }
-                    else if (x > this.real.width - 16 && y <= this.real.height - 16 && y >= 16) {
+                    } else if (x > this.real.width - 16 && y <= this.real.height - 16 && y >= 16) {
                         return "e";
-                    }
-                    else if (x >= 16 && x <= this.real.width - 16 && y < 16) {
+                    } else if (x >= 16 && x <= this.real.width - 16 && y < 16) {
                         return "n";
-                    }
-                    else if (x >= 16 && x <= this.real.width - 16 && y > this.real.height - 16) {
+                    } else if (x >= 16 && x <= this.real.width - 16 && y > this.real.height - 16) {
                         return "s";
-                    }
-                    else {
+                    } else {
                         return "interior";
                     }
                 }
 
             },
             created: function() {
-                this.$watch("x", function(newval, oldval){
+                this.$watch("x", function(newval, oldval) {
                     this.real.x = newval;
                 }.bind(this));
-                this.$watch("y", function(newval, oldval){
+                this.$watch("y", function(newval, oldval) {
                     this.real.y = newval;
                 }.bind(this));
-                this.$watch("width", function(newval, oldval){
+                this.$watch("width", function(newval, oldval) {
                     this.real.width = newval;
                 }.bind(this));
-                this.$watch("height", function(newval, oldval){
+                this.$watch("height", function(newval, oldval) {
                     this.real.height = newval;
                 }.bind(this));
 
@@ -206,33 +215,63 @@
                 var strokeColor = "rgba(0,255,0, .8)";
                 var rects = [
                     // shadow rect to increase size of bbox
-                    h("rect", { attrs: { "x": this.real.x - 10,
-                                         "y": this.real.y - 10,
-                                         "height": this.real.height + 20,
-                                         "width": this.real.width  + 20},
-                                style: { "stroke": "rgba(0,0,0,0)",
-                                         "fill": "rgba(0,0,0,0)",
-                                         "stroke-width": 2,
-                                         "cursor": this.cursor } }),
+                    h("rect", {
+                        attrs: {
+                            "x": this.real.x - 10,
+                            "y": this.real.y - 10,
+                            "height": this.real.height + 20,
+                            "width": this.real.width + 20
+                        },
+                        style: {
+                            "stroke": "rgba(0,0,0,0)",
+                            "fill": "rgba(0,0,0,0)",
+                            "stroke-width": 2,
+                            "cursor": this.cursor
+                        }
+                    }),
                     // bbox
-                    h("rect", { attrs: { "x": this.real.x, "y": this.real.y, "height": this.real.height, "width": this.real.width },
-                                style: { "stroke": strokeColor, "fill": this.fillColor, "stroke-width": 2, "cursor": this.cursor } }),
+                    h("rect", {
+                        attrs: {
+                            "x": this.real.x,
+                            "y": this.real.y,
+                            "height": this.real.height,
+                            "width": this.real.width
+                        },
+                        style: {
+                            "stroke": strokeColor,
+                            "fill": this.fillColor,
+                            "stroke-width": 2,
+                            "cursor": this.cursor
+                        }
+                    }),
 
                     // close handle
-                    h("image", { attrs: { "width": 16,
-                                          "height": 16,
-                                          "xlink:href": "https://cdn1.iconfinder.com/data/icons/ui-navigation-1/152/close-128.png",
-                                          "x": this.real.x + this.real.width - 8,
-                                          "y": this.real.y - 8
-                                        },
-                                 style: { "cursor": "pointer" },
-                                 on: { click: this.onDelete }
-                               }),
+                    h("image", {
+                        attrs: {
+                            "width": 16,
+                            "height": 16,
+                            "xlink:href": "https://cdn1.iconfinder.com/data/icons/ui-navigation-1/152/close-128.png",
+                            "x": this.real.x + this.real.width - 8,
+                            "y": this.real.y - 8
+                        },
+                        style: {
+                            "cursor": "pointer",
+                            "visibility": this.active ? "visible" : "hidden"
+                        },
+                        on: {
+                            click: this.onDelete
+                        }
+                    }),
                 ];
-                return h("g",
-                         {on: { mousemove: this.onMouseMove, mouseleave: this.onMouseLeave, click: this.onClick,
-                                 mousedown: this.onDragStart, mouseup: this.onDragEnd }},
-                         rects);
+                return h("g", {
+                        on: {
+                            mousemove: this.onMouseMove,
+                            mouseleave: this.onMouseLeave,
+                            mousedown: this.onDragStart,
+                            mouseup: this.onDragEnd
+                        }
+                    },
+                    rects);
             }
         });
 
@@ -252,6 +291,23 @@
                     image_height: 0,
                     image_width: 0,
                 };
+            },
+
+            methods: {
+                handleDeleteAnnotation: function(target) {
+                    this.$emit('delete-annotation', target);
+                },
+                handleAddAnnotation: function(event) {
+                    var offset = $(event.target).offset();
+                    var bbox = {
+                        x: (event.pageX - offset.left - 5)/this.image_width,
+                        y: (event.pageY - offset.top - 5)/this.image_height,
+                        width: 10.0/this.image_width,
+                        height: 10.0/this.image_height,
+                        interactive: true
+                    };
+                    this.annotations.push(bbox);
+                },
             },
 
             computed: {
@@ -282,49 +338,78 @@
             },
 
             render: function(h) {
-                var annos = this.bboxes.map(function(b) {
-                    return h("editable-bbox", {props: {x:b.x, y:b.y, width:b.width, height:b.height}});
+                var annos = this.bboxes.map(function(b, i) {
+                    return h("editable-bbox", {
+                        props: {
+                            x: b.x,
+                            y: b.y,
+                            width: b.width,
+                            height: b.height,
+                            index: i,
+                            mostrecentadded: (i === (this.annotations.length - 1)),
+                            interactive: b.interactive
+                        },
+                        on: {
+                            delete: this.handleDeleteAnnotation
+                        }
+                    });
                 }.bind(this));
 
-                return h("div", {"style": { "position": "relative" }}, [
-                    h("img", {
-                        style: {
-                            "position": "relative",
-                            "max-width": "100%",
-                            "max-height": "800px",
-                            "top": 0,
-                            "left": 0
-                        },
-                        attrs: {
-                            "src": this.url
-                        }
+                return h("div", {
+                    style: {
+                        "position": "relative"
+                    },
+                    on: {
+                        mousedown: this.handleAddAnnotation
+                    }
+                }, [
+                    h("img", { style: { "position": "relative",
+                                        "max-width": "100%",
+                                        "max-height": "800px",
+                                        "top": 0,
+                                        "left": 0 },
+                               attrs: { "src": this.url }
                     }),
                     h("svg", {
-                        "style": {
-                            "position": "absolute",
-                            "width": this.image_width,
-                            "height": this.image_height,
-                            "top": 0,
-                            "left": 0
-                        }
-                    },
-                    annos),
+                            style: {
+                                "position": "absolute",
+                                "width": this.image_width,
+                                "height": this.image_height,
+                                "top": 0,
+                                "left": 0
+                            }
+                        },
+                        annos),
                 ]);
             }
         });
         var app = new Vue({
             el: "#app",
             methods: {
-                addBox: function() {
-                    this.annotations.push({x: Math.random(), y: Math.random(), width: Math.random(), height: Math.random()});
+                addAnnotation: function(event) {
+                    this.annotations.push({
+                        x: .5 + Math.random()*.1,
+                        y: .5 + Math.random()*.1,
+                        width: .1,
+                        height: .1,
+                        interactive: false
+                    });
+                },
+                onDeleteAnnotation: function(target) {
+                    this.annotations = this.annotations.filter(function(a, i) {
+                        console.log("i=" + i) ;
+                        console.log("t=" + target.index) ;
+                        return i != target.index ;
+                    });
                 }
             },
             data: {
                 mainImageUrl: "http://media.ussportscamps.com/assets/camps/soccer/slideshow/nike-soccer-camps-ucsc-18.jpg",
                 prototypeImageUrl: "http://ecx.images-amazon.com/images/I/21Pd3+4L8HL._AC_UL160_SR160,160_.jpg",
-                annotations: [{"x": .20, "y": .30, "width": .2, "height": .2}]
-            }
-        })
+                annotations: []
+            },
+        });
+
     </script>
 </body>
 
