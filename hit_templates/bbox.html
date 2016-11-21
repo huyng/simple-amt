@@ -91,12 +91,14 @@
             },
             methods: {
                 onDelete: function(event) {
+                    console.log(event.clientX);
+                    console.log(event.clientX);
                     event.stopPropagation();
                     event.stopImmediatePropagation();
                     event.preventDefault();
                     console.log("delete");
                     this.$nextTick(function(){
-                        this.$emit("delete", this);
+                        this.$emit("delete", this, event);
                     }.bind(this))
 
                 },
@@ -294,8 +296,8 @@
             },
 
             methods: {
-                handleDeleteAnnotation: function(target) {
-                    this.$emit('delete-annotation', target);
+                handleDeleteAnnotation: function(target, event) {
+                    this.$emit('delete-annotation', target, event);
                 },
                 handleAddAnnotation: function(event) {
                     var offset = $(event.target).offset();
@@ -395,8 +397,9 @@
                         interactive: false
                     });
                 },
-                onDeleteAnnotation: function(target) {
+                onDeleteAnnotation: function(target, event) {
                     this.annotations = this.annotations.filter(function(a, i) {
+                        debugger;
                         console.log("i=" + i) ;
                         console.log("t=" + target.index) ;
                         return i != target.index ;
