@@ -1,14 +1,42 @@
 <html>
 
 <head>
-    <script src='//cdnjs.cloudflare.com/ajax/libs/jquery/2.1.1/jquery.min.js'></script>
-    <script src='//cdnjs.cloudflare.com/ajax/libs/json3/3.3.2/json3.min.js'></script>
-    <script src="//cdnjs.cloudflare.com/ajax/libs/vue/2.0.5/vue.js" charset="utf-8"></script>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/skeleton/2.0.4/skeleton.min.css">
+    <!-- <script src='//cdnjs.cloudflare.com/ajax/libs/jquery/2.1.1/jquery.min.js'></script> -->
+    <!-- <script src='//cdnjs.cloudflare.com/ajax/libs/json3/3.3.2/json3.min.js'></script> -->
+    <!-- <script src="//cdnjs.cloudflare.com/ajax/libs/vue/2.0.5/vue.js" charset="utf-8"></script> -->
+    <script src="jquery.min.js" charset="utf-8"></script>
+    <script src="json3.min.js" charset="utf-8"></script>
+    <script src="vue.js" charset="utf-8"></script>
+    <link rel="stylesheet" href="skeleton.min.css">
+    <!-- <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/skeleton/2.0.4/skeleton.min.css"> -->
     <style media="screen">
         .container {
             max-width: 1024px;
         }
+
+        .anno-rect {
+            stroke: rgba(0, 255, 0, .8);
+            fill: rgba(0, 0, 0, 0);
+            stroke-width: 2;
+        }
+
+        .anno-rect:hover {
+            fill: rgba(0,255,0,.2);
+        }
+
+        .anno-rect.selected {
+            fill: rgba(0, 255, 0, .2);
+        }
+
+        g image {
+            visibility: hidden;
+        }
+
+        g:hover image {
+            visibility: visible;
+        }
+
+
     </style>
 </head>
 
@@ -27,11 +55,10 @@
                 <annotated-image v-on:delete-annotation="onDeleteAnnotation" v-on:click="addAnnotation" v-bind:url="mainImageUrl" v-bind:annotations="annotations"></annotated-image>
                 <br>
                 <br>
-                <button type="button" name="button" v-on:click="addAnnotation">Add box</button>
                 <form id='results-form' method='post' action='dummy' accept-charset="utf-8" enctype="application/x-www-form-urlencoded" class='text-center'>
                     <input type='hidden' value='' name='assignmentId' id='assignmentId' />
                     <input type='hidden' value='hello' name='output' id='output' />
-                    <input type='submit' class='btn btn-lg btn-success' name="commit" value="submit" id='submit-btn' disabled/>
+                    <input type='submit' class='button-primary' name="commit" value="submit" id='submit-btn' disabled/>
                 </form>
 
             </div>
@@ -39,7 +66,6 @@
         <br>
         <br>
     </div>
-
     <script type='text/json' id='input'>
     
 </script>
@@ -95,241 +121,36 @@
 
     })();
 </script>
-
     <script>
-        Vue.component('editable-bbox', {
-            props: ["x", "y", "width", "height", "index", "mostrecentadded", "interactive"],
-            data: function() {
-                return {
-                    active: false,
-                    dragging: false,
-                    dragStartRegion: null,
-                    mousepos: {
-                        x: null,
-                        y: null
-                    },
-                    prevpos: {
-                        x: null,
-                        y: null
-                    },
-                    real: {
-                        x: this.x,
-                        y: this.y,
-                        width: this.width,
-                        height: this.height
-                    },
-                    justadded: this.mostrecentadded,
+        // Will return w, nw, n, ne, e, se, s, sw for the eight borders,
+        // n for inside, or "" when current location not in `dirs`.
+        function whichborder(mousexy, elem_xywh) {
+            var x = elem_xywh[0];
+            var y = elem_xywh[1];
+            var w = elem_xywh[2];
+            var h = elem_xywh[3];
+            var border = "";
 
+            if (mousexy[1] <= y + 6)
+                border += 'n';
+            else if (mousexy[1] >= y + h - 6)
+                border += 's';
 
-                }
-            },
-            computed: {
-                cursor: function() {
-                    if (!this.active || this.mousepos.y === null || this.mousepos.x === null) {
-                        return "pointer";
-                    }
-                    var region = this.getRegion(this.mousepos.x, this.mousepos.y);
-                    if (region === "interior") {
-                        return "move";
-                    } else {
-                        return region + "-resize";
-                    }
-                },
-                fillColor: function() {
-                    if (this.active) {
-                        return "rgba(0,255,0,.3)";
-                    } else {
-                        return "rgba(0,255,0,.0)";
-                    }
-                },
-            },
-            methods: {
-                onDelete: function(event) {
-                    console.log(event.clientX);
-                    console.log(event.clientX);
-                    event.stopPropagation();
-                    event.stopImmediatePropagation();
-                    event.preventDefault();
-                    console.log("delete");
-                    this.$nextTick(function(){
-                        this.$emit("delete", this, event);
-                    }.bind(this))
+            if (mousexy[0] <= x + 6)
+                border += 'w';
+            else if (mousexy[0] >= x + w - 6)
+                border += 'e';
 
-                },
-                onDragStart: function(event) {
-                    event.stopPropagation();
-                    event.stopImmediatePropagation();
-                    event.preventDefault();
-                    console.log("dragging start");
-                    this.prevpos.x = event.clientX;
-                    this.prevpos.y = event.clientY;
-                    this.dragging = true;
-                    this.dragStartRegion = this.getRegion(this.mousepos.x, this.mousepos.y);
-                },
-                onDrag: function(event) {
-                    console.log(this.prevpos.x);
-                    if (this.prevpos.x == null) {
-                        this.prevpos.x = event.clientX;
-                        this.prevpos.y = event.clientY;
-                        this.dragStartRegion = "se";
-                        this.dragging = true;
-                    }
-                    var region = this.dragStartRegion;
-                    var dx = event.clientX - this.prevpos.x;
-                    var dy = event.clientY - this.prevpos.y;
-                    this.prevpos.x = event.clientX;
-                    this.prevpos.y = event.clientY;
+            if (mousexy[0] > x + w + 0 ||
+                mousexy[0] < x - 0 ||
+                mousexy[1] < y - 0 ||
+                mousexy[1] > y + h + 0)
+                border = "O";
+            else if (border == "")
+                border = "M";
 
-                    if (region === "interior") {
-                        this.real.x += dx;
-                        this.real.y += dy;
-                    } else if (region == "se") {
-                        this.real.width += dx;
-                        this.real.height += dy;
-                    } else if (region == "s") {
-                        this.real.height += dy;
-                    } else if (region == "sw") {
-                        this.real.x += dx;
-                        this.real.width -= dx;
-                        this.real.height += dy;
-                    } else if (region == "w") {
-                        this.real.x += dx;
-                        this.real.width -= dx;
-                    } else if (region == "e") {
-                        this.real.width += dx;
-                    } else if (region == "n") {
-                        this.real.y += dy;
-                        this.real.height -= dy;
-                    } else if (region == "nw") {
-                        this.real.x += dx;
-                        this.real.width -= dx;
-                        this.real.y += dy;
-                        this.real.height -= dy;
-                    }
-                },
-                onDragEnd: function(event) {
-                    console.log("dragging end");
-                    this.dragging = false;
-                    this.active = false;
-                    this.prevpos.x = null;
-                    this.prevpos.y = null;
-                },
-                onMouseMove: function(event) {
-                    var offset = $(event.target).offset();
-                    this.mousepos.x = event.pageX - offset.left;
-                    this.mousepos.y = event.pageY - offset.top;
-                    this.active = true;
-
-                    if (this.dragging || (this.justadded && this.interactive)) {
-                        this.onDrag.apply(this, [event]);
-                        this.justadded = false;
-                    }
-                    return true;
-                },
-                onMouseLeave: function(event) {
-                    this.active = false;
-                },
-                getRegion: function(x, y) {
-                    if (x < 16 && y < 16) {
-                        return "nw";
-                    } else if (x < 16 && y > this.real.height - 16) {
-                        return "sw";
-                    } else if (x < 16 && y <= this.real.height - 16 && y >= 16) {
-                        return "w";
-                    } else if (x > this.real.width - 16 && y < 16) {
-                        return "ne";
-                    } else if (x > this.real.width - 16 && y > this.real.height - 16) {
-                        return "se";
-                    } else if (x > this.real.width - 16 && y <= this.real.height - 16 && y >= 16) {
-                        return "e";
-                    } else if (x >= 16 && x <= this.real.width - 16 && y < 16) {
-                        return "n";
-                    } else if (x >= 16 && x <= this.real.width - 16 && y > this.real.height - 16) {
-                        return "s";
-                    } else {
-                        return "interior";
-                    }
-                }
-
-            },
-            created: function() {
-                this.$watch("x", function(newval, oldval) {
-                    this.real.x = newval;
-                }.bind(this));
-                this.$watch("y", function(newval, oldval) {
-                    this.real.y = newval;
-                }.bind(this));
-                this.$watch("width", function(newval, oldval) {
-                    this.real.width = newval;
-                }.bind(this));
-                this.$watch("height", function(newval, oldval) {
-                    this.real.height = newval;
-                }.bind(this));
-
-            },
-            render: function(h) {
-                var strokeColor = "rgba(0,255,0, .8)";
-                var rects = [
-                    // shadow rect to increase size of bbox
-                    h("rect", {
-                        attrs: {
-                            "x": this.real.x - 10,
-                            "y": this.real.y - 10,
-                            "height": this.real.height + 20,
-                            "width": this.real.width + 20
-                        },
-                        style: {
-                            "stroke": "rgba(0,0,0,0)",
-                            "fill": "rgba(0,0,0,0)",
-                            "stroke-width": 2,
-                            "cursor": this.cursor
-                        }
-                    }),
-                    // bbox
-                    h("rect", {
-                        attrs: {
-                            "x": this.real.x,
-                            "y": this.real.y,
-                            "height": this.real.height,
-                            "width": this.real.width
-                        },
-                        style: {
-                            "stroke": strokeColor,
-                            "fill": this.fillColor,
-                            "stroke-width": 2,
-                            "cursor": this.cursor
-                        }
-                    }),
-
-                    // close handle
-                    h("image", {
-                        attrs: {
-                            "width": 16,
-                            "height": 16,
-                            "xlink:href": "https://cdn1.iconfinder.com/data/icons/ui-navigation-1/152/close-128.png",
-                            "x": this.real.x + this.real.width - 8,
-                            "y": this.real.y - 8
-                        },
-                        style: {
-                            "cursor": "pointer",
-                            "visibility": this.active ? "visible" : "hidden"
-                        },
-                        on: {
-                            click: this.onDelete
-                        }
-                    }),
-                ];
-                return h("g", {
-                        on: {
-                            mousemove: this.onMouseMove,
-                            mouseleave: this.onMouseLeave,
-                            mousedown: this.onDragStart,
-                            mouseup: this.onDragEnd
-                        }
-                    },
-                    rects);
-            }
-        });
+            return border;
+        }
 
         Vue.component('annotated-image', {
             props: {
@@ -344,43 +165,170 @@
 
             data: function() {
                 return {
+                    anno_counter: 0,
                     image_height: 0,
                     image_width: 0,
+                    mouse_x: null,
+                    mouse_y: null,
+                    mouse_down_x: null,
+                    mouse_down_y: null,
+                    mouse_down_target: null,
+                    mouse_over_target: null,
+                    action: null,
+                    cursor: "crosshair"
                 };
             },
 
             methods: {
-                handleDeleteAnnotation: function(target, event) {
-                    this.$emit('delete-annotation', target, event);
+
+                getAnnotationIndexFromId: function(aid) {
+                    for (var i = 0; i < this.annotations.length; i++) {
+                        if (this.annotations[i].i === aid) {
+                            return i;
+                        }
+                    }
+                    return -1;
                 },
-                handleAddAnnotation: function(event) {
-                    var offset = $(event.target).offset();
+                getHoveredAnnotationRegion: function(xy) {
+                    var region = "O";
+                    var i = this.annotations.length - 1;
+                    for (; i >= 0; i--) {
+                        var a = this.annotations[i];
+                        var elem_xywh = [a.x * this.image_width,
+                                         a.y * this.image_height,
+                                         a.width * this.image_width,
+                                         a.height * this.image_height];
+                        var region = whichborder(mousexy, elem_xywh);
+                        if (region !== "O")
+                            break;
+                    }
+                    return {"region": region, "i": i};
+                },
+
+
+                handleDeleteAnnotation: function(target, event) {
+                    this.annotations = this.annotations.filter(function(a, i) {
+                        return i != target.index;
+                    });
+                },
+
+                addAnnotation: function() {
                     var bbox = {
-                        x: (event.pageX - offset.left - 5)/this.image_width,
-                        y: (event.pageY - offset.top - 5)/this.image_height,
-                        width: 10.0/this.image_width,
-                        height: 10.0/this.image_height,
-                        interactive: true
+                        x: this.mouse_x / this.image_width,
+                        y: this.mouse_y / this.image_height,
+                        width: 10.0 / this.image_width,
+                        height: 10.0 / this.image_height,
+                        i: this.anno_counter++
                     };
                     this.annotations.push(bbox);
+                    this.mouse_down_target = this.annotations.length - 1;
                 },
+
+                handleMouseMove: function(event) {
+                    var dx = (event.offsetX - this.mouse_x)/this.image_width;
+                    var dy = (event.offsetY - this.mouse_y)/this.image_height;
+                    var i = this.mouse_down_target;
+
+                    if (this.action === "move") {
+                        this.annotations[i].x += dx;
+                        this.annotations[i].y += dy;
+                    }
+                    else if (this.action) {
+                        var resize_action = this.action.split("_")[0];
+                        if (resize_action.indexOf("e") != -1)
+                            this.annotations[i].width = Math.max(0, this.annotations[i].width + dx);
+                        if (resize_action.indexOf("s") != -1)
+                            this.annotations[i].height = Math.max(0, this.annotations[i].height + dy);
+                        if (resize_action.indexOf("n") != -1) {
+                            this.annotations[i].height = Math.max(0, this.annotations[i].height - dy);
+                            this.annotations[i].y = Math.max(0, this.annotations[i].y + dy);
+                        }
+                        if (resize_action.indexOf("w") != -1) {
+                            this.annotations[i].width = Math.max(0, this.annotations[i].width - dx);
+                            this.annotations[i].x = Math.max(0, this.annotations[i].x + dx);
+                        }
+                    }
+
+                    this.mouse_x = event.offsetX;
+                    this.mouse_y = event.offsetY;
+
+                    // hover events
+                    console.log(event.target.tagName);
+                    var mousexy = [event.offsetX, event.offsetY];
+                    for (var i = this.annotations.length - 1; i >= 0; i--) {
+                        var a = this.annotations[i];
+                        var elem_xywh = [a.x * this.image_width,
+                                         a.y * this.image_height,
+                                         a.width * this.image_width,
+                                         a.height * this.image_height];
+                        var region = whichborder(mousexy, elem_xywh);
+                        if (region !== "O")
+                            break;
+                    }
+
+                    if (region === "M") {
+                        this.cursor = "move";
+                    } else if (region === "O") {
+                        this.cursor = "crosshair";
+                    } else {
+                        this.cursor = region + "-resize";
+                    }
+
+                },
+
+                handleMouseDown: function(event) {
+                    this.mouse_down_x = event.offsetX;
+                    this.mouse_down_y = event.offsetY;
+                    this.mouse_down = true;
+                    console.log(event.target.targetName);
+                    if (event.target.tagName == "svg") {
+                        this.addAnnotation();
+                        this.action = "se_resize";
+                    } else if (event.target.tagName == "rect") {
+                        var aid = parseInt(event.target.getAttribute("i"));
+                        var i = this.getAnnotationIndexFromId(aid);
+                        this.mouse_down_target = i;
+                        console.log(i);
+                        var a = this.annotations[i];
+                        var elem_xywh = [a.x * this.image_width, a.y * this.image_height,
+                            a.width * this.image_width, a.height * this.image_height
+                        ];
+                        var mousexy = [this.mouse_down_x, this.mouse_down_y];
+                        var region = whichborder(mousexy, elem_xywh);
+
+                        if (region === "M")
+                            this.action = "move";
+                        else {
+                            this.action = region + "_resize";
+                        }
+                    }
+                },
+
+                handleMouseUp: function(event) {
+                    this.mouse_down_x = null;
+                    this.mouse_down_y = null;
+                    this.mouse_down_target = null;
+                    this.action = null;
+                    console.log(event.target.tagName);
+                    if (event.target.tagName === "image") {
+                        var aid = parseInt(event.target.getAttribute("i"));
+                        var idx = this.getAnnotationIndexFromId(aid);
+                        this.annotations.splice(idx, 1);
+                        this.cursor = "crosshair";
+
+                    }
+                },
+
             },
 
             computed: {
                 bboxes: function() {
                     return this.annotations.map(function(a) {
                         var copy = Object.assign({}, a);
-                        if (a.x0 !== undefined) {
-                            copy.x = a.x0 * this.image_width;
-                            copy.y = a.y0 * this.image_height;
-                            copy.width = (a.x1 - a.x0) * this.image_width;
-                            copy.height = (a.y1 - a.y0) * this.image_height;
-                        } else if (a.x !== undefined) {
-                            copy.x *= this.image_width;
-                            copy.y *= this.image_height;
-                            copy.width *= this.image_width;
-                            copy.height *= this.image_height;
-                        }
+                        copy.x *= this.image_width;
+                        copy.y *= this.image_height;
+                        copy.width *= this.image_width;
+                        copy.height *= this.image_height;
                         return copy;
                     }.bind(this));
                 }
@@ -395,36 +343,62 @@
 
             render: function(h) {
                 var annos = this.bboxes.map(function(b, i) {
-                    return h("editable-bbox", {
-                        props: {
-                            x: b.x,
-                            y: b.y,
-                            width: b.width,
-                            height: b.height,
-                            index: i,
-                            mostrecentadded: (i === (this.annotations.length - 1)),
-                            interactive: b.interactive
-                        },
-                        on: {
-                            delete: this.handleDeleteAnnotation
-                        }
-                    });
+                    return h("g", {},
+                        [
+                            h("rect", {
+                                attrs: {
+                                    x: b.x,
+                                    y: b.y,
+                                    width: b.width,
+                                    height: b.height,
+                                    i: b.i
+                                },
+                                "class": {
+                                    "anno-rect": true,
+                                    "selected": this.mouse_down_target == b.i
+                                }
+                            }),
+                            h("image", {
+                                attrs: {
+                                    "width": 16,
+                                    "height": 16,
+                                    "xlink:href": "https://cdn1.iconfinder.com/data/icons/ui-navigation-1/152/close-128.png",
+                                    "x": b.x + b.width - 8,
+                                    "y": b.y - 8,
+                                    "i": b.i
+                                },
+                                style: {
+                                    "cursor": "pointer",
+                                    // "visibility": this.mouse_down_target == b.i ? "visible" : "hidden"
+                                },
+                            }),
+
+                        ]
+                    );
                 }.bind(this));
 
                 return h("div", {
                     style: {
-                        "position": "relative"
+                        "position": "relative",
+                        "cursor": this.cursor
                     },
                     on: {
-                        mousedown: this.handleAddAnnotation
+                        mousedown: this.handleMouseDown,
+                        mouseup: this.handleMouseUp,
+                        mousemove: this.handleMouseMove,
                     }
                 }, [
-                    h("img", { style: { "position": "relative",
-                                        "max-width": "100%",
-                                        "max-height": "800px",
-                                        "top": 0,
-                                        "left": 0 },
-                               attrs: { "src": this.url }
+                    h("img", {
+                        style: {
+                            "position": "relative",
+                            "max-width": "100%",
+                            "max-height": "800px",
+                            "top": 0,
+                            "left": 0
+                        },
+                        attrs: {
+                            "src": this.url
+                        }
                     }),
                     h("svg", {
                             style: {
@@ -444,8 +418,8 @@
             methods: {
                 addAnnotation: function(event) {
                     this.annotations.push({
-                        x: .5 + Math.random()*.1,
-                        y: .5 + Math.random()*.1,
+                        x: .5 + Math.random() * .1,
+                        y: .5 + Math.random() * .1,
                         width: .1,
                         height: .1,
                         interactive: false
@@ -453,20 +427,19 @@
                 },
                 onDeleteAnnotation: function(target, event) {
                     this.annotations = this.annotations.filter(function(a, i) {
-                        debugger;
-                        console.log("i=" + i) ;
-                        console.log("t=" + target.index) ;
-                        return i != target.index ;
+                        return i != target.index;
                     });
                 }
             },
+
             data: {
-                mainImageUrl: "http://media.ussportscamps.com/assets/camps/soccer/slideshow/nike-soccer-camps-ucsc-18.jpg",
-                prototypeImageUrl: "http://ecx.images-amazon.com/images/I/21Pd3+4L8HL._AC_UL160_SR160,160_.jpg",
-                annotations: []
+                mainImageUrl: "nike-soccer-camps-ucsc-18.jpg",
+                prototypeImageUrl: "21Pd3+4L8HL._AC_UL160_SR160,160_.jpg",
+                annotations: [],
+                mturkTaskAccepted: !simpleamt.isPreview()
             },
         });
-
+        debugger;
     </script>
 </body>
 
