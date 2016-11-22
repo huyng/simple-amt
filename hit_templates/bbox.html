@@ -1,14 +1,14 @@
 <html>
 
 <head>
-    <!-- <script src='//cdnjs.cloudflare.com/ajax/libs/jquery/2.1.1/jquery.min.js'></script> -->
-    <!-- <script src='//cdnjs.cloudflare.com/ajax/libs/json3/3.3.2/json3.min.js'></script> -->
-    <!-- <script src="//cdnjs.cloudflare.com/ajax/libs/vue/2.0.5/vue.js" charset="utf-8"></script> -->
-    <script src="jquery.min.js" charset="utf-8"></script>
-    <script src="json3.min.js" charset="utf-8"></script>
-    <script src="vue.js" charset="utf-8"></script>
-    <link rel="stylesheet" href="skeleton.min.css">
-    <!-- <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/skeleton/2.0.4/skeleton.min.css"> -->
+    <script src='//cdnjs.cloudflare.com/ajax/libs/jquery/2.1.1/jquery.min.js'></script>
+    <script src='//cdnjs.cloudflare.com/ajax/libs/json3/3.3.2/json3.min.js'></script>
+    <script src="//cdnjs.cloudflare.com/ajax/libs/vue/2.0.5/vue.js" charset="utf-8"></script>
+    <!-- <script src="jquery.min.js" charset="utf-8"></script> -->
+    <!-- <script src="json3.min.js" charset="utf-8"></script> -->
+    <!-- <script src="vue.js" charset="utf-8"></script> -->
+    <!-- <link rel="stylesheet" href="skeleton.min.css"> -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/skeleton/2.0.4/skeleton.min.css">
     <style media="screen">
         .container {
             max-width: 1024px;
@@ -35,6 +35,14 @@
         g:hover image {
             visibility: visible;
         }
+
+        input[type="submit"]:disabled {
+            background: #dddddd;
+            border: 1px solid #dddddd;
+            color: black;
+            cursor: not-allowed;
+        }
+
     </style>
 </head>
 
@@ -56,7 +64,7 @@
                 <form id='results-form' method='post' action='dummy' accept-charset="utf-8" enctype="application/x-www-form-urlencoded" class='text-center'>
                     <input type='hidden' value='' name='assignmentId' id='assignmentId' />
                     <input type='hidden' value='hello' name='output' id='output' />
-                    <input type='submit' class='button-primary' name="commit" value="submit" id='submit-btn' disabled/>
+                    <input type='submit' class='button-primary' id='submit-btn' v-bind:value="submitButtonMessage()" v-bind:disabled="mturkPreview"/>
                 </form>
 
             </div>
@@ -377,17 +385,42 @@
                     this.annotations = this.annotations.filter(function(a, i) {
                         return i != target.index;
                     });
+                },
+                submitButtonMessage: function() {
+                    if (this.mturkPreview) {
+                        return "You must accept the HIT to submit results";
+                    } else {
+                        return "Submit";
+                    }
+                }
+
+            },
+            mounted: function() {
+                console.log("mturk in preview mode = " + simpleamt.isPreview());
+                if (!simpleamt.isPreview()) {
+                    console.log("setting up form submit");
+
+                    simpleamt.setupSubmit();
+
+                    // setup input
+                    var input = simpleamt.getInput();
+                    this.prototypeImageUrl = input.prototype;
+                    this.mainImageUrl = input.image;
+                    this.mturkPreview = false;
                 }
             },
 
             data: {
-                mainImageUrl: "nike-soccer-camps-ucsc-18.jpg",
-                prototypeImageUrl: "21Pd3+4L8HL._AC_UL160_SR160,160_.jpg",
+                // mainImageUrl: "nike-soccer-camps-ucsc-18.jpg",
+                // prototypeImageUrl: "21Pd3+4L8HL._AC_UL160_SR160,160_.jpg",
+                mainImageUrl: "http://media.ussportscamps.com/assets/camps/soccer/slideshow/nike-soccer-camps-ucsc-18.jpg",
+                prototypeImageUrl: "http://ecx.images-amazon.com/images/I/21Pd3+4L8HL._AC_UL160_SR160,160_.jpg",
                 annotations: [],
-                mturkTaskAccepted: !simpleamt.isPreview()
+                mturkPreview: true,
+
             },
         });
-        debugger;
+
     </script>
 </body>
 
