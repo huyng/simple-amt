@@ -29,7 +29,7 @@
         function isPreview() {
             var assignment_id = getUrlParam('assignmentId');
             if (assignment_id === null)
-              return false;
+                return true;
             return assignment_id == 'ASSIGNMENT_ID_NOT_AVAILABLE';
         }
 
@@ -49,6 +49,7 @@
             setOutput: setOutput,
             isPreview: isPreview,
             setupSubmit: setupSubmit,
+            getUrlParam: getUrlParam
         }
 
     })();

@@ -1,14 +1,14 @@
 <html>
 
 <head>
-    <!-- <script src='//cdnjs.cloudflare.com/ajax/libs/jquery/2.1.1/jquery.min.js'></script> -->
-    <!-- <script src='//cdnjs.cloudflare.com/ajax/libs/json3/3.3.2/json3.min.js'></script> -->
-    <!-- <script src="//cdnjs.cloudflare.com/ajax/libs/vue/2.0.5/vue.js" charset="utf-8"></script> -->
-    <script src="jquery.min.js" charset="utf-8"></script>
-    <script src="json3.min.js" charset="utf-8"></script>
-    <script src="vue.js" charset="utf-8"></script>
-    <link rel="stylesheet" href="skeleton.min.css">
-    <!-- <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/skeleton/2.0.4/skeleton.min.css"> -->
+    <script src='//cdnjs.cloudflare.com/ajax/libs/jquery/2.1.1/jquery.min.js'></script>
+    <script src='//cdnjs.cloudflare.com/ajax/libs/json3/3.3.2/json3.min.js'></script>
+    <script src="//cdnjs.cloudflare.com/ajax/libs/vue/2.0.5/vue.js" charset="utf-8"></script>
+    <!-- <script src="jquery.min.js" charset="utf-8"></script> -->
+    <!-- <script src="json3.min.js" charset="utf-8"></script> -->
+    <!-- <script src="vue.js" charset="utf-8"></script> -->
+    <!-- <link rel="stylesheet" href="skeleton.min.css"> -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/skeleton/2.0.4/skeleton.min.css">
     <style media="screen">
         .container {
             max-width: 1024px;
@@ -21,7 +21,7 @@
         }
 
         .anno-rect:hover {
-            fill: rgba(0,255,0,.2);
+            fill: rgba(0, 255, 0, .2);
         }
 
         .anno-rect.selected {
@@ -36,6 +36,12 @@
             visibility: visible;
         }
 
+        input[type="submit"]:disabled {
+            background: #dddddd;
+            border: 1px solid #dddddd;
+            color: black;
+            cursor: not-allowed;
+        }
 
     </style>
 </head>
@@ -52,13 +58,13 @@
             </div>
             <div class="ten columns">
                 <h6>in this image <b>&#8681;</b> and draw boxes around the matching items</h6>
-                <annotated-image v-on:delete-annotation="onDeleteAnnotation" v-on:click="addAnnotation" v-bind:url="mainImageUrl" v-bind:annotations="annotations"></annotated-image>
+                <annotated-image v-bind:url="mainImageUrl" ></annotated-image>
                 <br>
                 <br>
                 <form id='results-form' method='post' action='dummy' accept-charset="utf-8" enctype="application/x-www-form-urlencoded" class='text-center'>
                     <input type='hidden' value='' name='assignmentId' id='assignmentId' />
                     <input type='hidden' value='hello' name='output' id='output' />
-                    <input type='submit' class='button-primary' name="commit" value="submit" id='submit-btn' disabled/>
+                    <input type='submit' class='button-primary' id='submit-btn' v-on:click="onSubmitClick" v-bind:value="submitButtonMessage()" v-bind:disabled="mturkPreview"/>
                 </form>
 
             </div>
@@ -66,6 +72,7 @@
         <br>
         <br>
     </div>
+
     <script type='text/json' id='input'>
     
 </script>
@@ -97,7 +104,7 @@
         function isPreview() {
             var assignment_id = getUrlParam('assignmentId');
             if (assignment_id === null)
-              return false;
+                return true;
             return assignment_id == 'ASSIGNMENT_ID_NOT_AVAILABLE';
         }
 
@@ -117,11 +124,14 @@
             setOutput: setOutput,
             isPreview: isPreview,
             setupSubmit: setupSubmit,
+            getUrlParam: getUrlParam
         }
 
     })();
 </script>
+
     <script>
+
         // Will return w, nw, n, ne, e, se, s, sw for the eight borders,
         // n for inside, or "" when current location not in `dirs`.
         function whichborder(mousexy, elem_xywh) {
@@ -189,22 +199,30 @@
                     }
                     return -1;
                 },
+
                 getHoveredAnnotationRegion: function(xy) {
                     var region = "O";
                     var i = this.annotations.length - 1;
                     for (; i >= 0; i--) {
                         var a = this.annotations[i];
                         var elem_xywh = [a.x * this.image_width,
-                                         a.y * this.image_height,
-                                         a.width * this.image_width,
-                                         a.height * this.image_height];
+                            a.y * this.image_height,
+                            a.width * this.image_width,
+                            a.height * this.image_height
+                        ];
                         var region = whichborder(mousexy, elem_xywh);
                         if (region !== "O")
                             break;
                     }
-                    return {"region": region, "i": i};
+                    return {
+                        "region": region,
+                        "i": i
+                    };
                 },
 
+                updateAnnotations: function() {
+                    bus.annotations = this.annotations;
+                },
 
                 handleDeleteAnnotation: function(target, event) {
                     this.annotations = this.annotations.filter(function(a, i) {
@@ -222,18 +240,18 @@
                     };
                     this.annotations.push(bbox);
                     this.mouse_down_target = this.annotations.length - 1;
+                    bus.annotations = this.annotations;
                 },
 
                 handleMouseMove: function(event) {
-                    var dx = (event.offsetX - this.mouse_x)/this.image_width;
-                    var dy = (event.offsetY - this.mouse_y)/this.image_height;
+                    var dx = (event.offsetX - this.mouse_x) / this.image_width;
+                    var dy = (event.offsetY - this.mouse_y) / this.image_height;
                     var i = this.mouse_down_target;
 
                     if (this.action === "move") {
                         this.annotations[i].x += dx;
                         this.annotations[i].y += dy;
-                    }
-                    else if (this.action) {
+                    } else if (this.action) {
                         var resize_action = this.action.split("_")[0];
                         if (resize_action.indexOf("e") != -1)
                             this.annotations[i].width = Math.max(0, this.annotations[i].width + dx);
@@ -249,8 +267,9 @@
                         }
                     }
 
-                    this.mouse_x = event.offsetX;
-                    this.mouse_y = event.offsetY;
+                    // udpate annotations
+                    this.updateAnnotations();
+
 
                     // hover events
                     console.log(event.target.tagName);
@@ -258,9 +277,10 @@
                     for (var i = this.annotations.length - 1; i >= 0; i--) {
                         var a = this.annotations[i];
                         var elem_xywh = [a.x * this.image_width,
-                                         a.y * this.image_height,
-                                         a.width * this.image_width,
-                                         a.height * this.image_height];
+                            a.y * this.image_height,
+                            a.width * this.image_width,
+                            a.height * this.image_height
+                        ];
                         var region = whichborder(mousexy, elem_xywh);
                         if (region !== "O")
                             break;
@@ -273,6 +293,10 @@
                     } else {
                         this.cursor = region + "-resize";
                     }
+
+                    this.mouse_x = event.offsetX;
+                    this.mouse_y = event.offsetY;
+
 
                 },
 
@@ -343,38 +367,36 @@
 
             render: function(h) {
                 var annos = this.bboxes.map(function(b, i) {
-                    return h("g", {},
-                        [
-                            h("rect", {
-                                attrs: {
-                                    x: b.x,
-                                    y: b.y,
-                                    width: b.width,
-                                    height: b.height,
-                                    i: b.i
-                                },
-                                "class": {
-                                    "anno-rect": true,
-                                    "selected": this.mouse_down_target == b.i
-                                }
-                            }),
-                            h("image", {
-                                attrs: {
-                                    "width": 16,
-                                    "height": 16,
-                                    "xlink:href": "https://cdn1.iconfinder.com/data/icons/ui-navigation-1/152/close-128.png",
-                                    "x": b.x + b.width - 8,
-                                    "y": b.y - 8,
-                                    "i": b.i
-                                },
-                                style: {
-                                    "cursor": "pointer",
-                                    // "visibility": this.mouse_down_target == b.i ? "visible" : "hidden"
-                                },
-                            }),
+                    return h("g", {}, [
+                        h("rect", {
+                            attrs: {
+                                x: b.x,
+                                y: b.y,
+                                width: b.width,
+                                height: b.height,
+                                i: b.i
+                            },
+                            "class": {
+                                "anno-rect": true,
+                                "selected": this.mouse_down_target == b.i
+                            }
+                        }),
+                        h("image", {
+                            attrs: {
+                                "width": 16,
+                                "height": 16,
+                                "xlink:href": "https://cdn1.iconfinder.com/data/icons/ui-navigation-1/152/close-128.png",
+                                "x": b.x + b.width - 8,
+                                "y": b.y - 8,
+                                "i": b.i
+                            },
+                            style: {
+                                "cursor": "pointer",
+                                // "visibility": this.mouse_down_target == b.i ? "visible" : "hidden"
+                            },
+                        }),
 
-                        ]
-                    );
+                    ]);
                 }.bind(this));
 
                 return h("div", {
@@ -413,33 +435,61 @@
                 ]);
             }
         });
+
+        var bus = new Vue({
+            data: {
+                annotations: []
+            }
+        });
         var app = new Vue({
             el: "#app",
             methods: {
-                addAnnotation: function(event) {
-                    this.annotations.push({
-                        x: .5 + Math.random() * .1,
-                        y: .5 + Math.random() * .1,
-                        width: .1,
-                        height: .1,
-                        interactive: false
-                    });
+                submitButtonMessage: function() {
+                    if (this.mturkPreview) {
+                        return "You must accept the HIT to submit results";
+                    } else if (bus.annotations.length == 0) {
+                        return "Submit: no matching logos";
+                    } else {
+                        return "Submit: " + bus.annotations.length + " bounding boxes";
+                    }
                 },
-                onDeleteAnnotation: function(target, event) {
-                    this.annotations = this.annotations.filter(function(a, i) {
-                        return i != target.index;
-                    });
+                onSubmitClick: function(event) {
+                    var output = {
+                        question: {
+                            templates: [this.prototypeImageUrl],
+                            photo: this.mainImageUrl
+                        },
+                        answer: {
+                            annotations: bus.annotations,
+                        }
+                    };
+                    var outputStr = JSON.stringify(output);
+                    simpleamt.setOutput(outputStr);
+                    console.log(JSON.stringify(output, null, 4));
+                }
+            },
+            mounted: function() {
+                console.log("mturk in preview mode = " + simpleamt.isPreview());
+                if (!simpleamt.isPreview()) {
+                    console.log("setting up form submit");
+
+                    simpleamt.setupSubmit();
+
+                    // setup input
+                    var input = simpleamt.getInput();
+                    this.prototypeImageUrl = input["prototype"];
+                    this.mainImageUrl = input.image;
+                    this.mturkPreview = false;
                 }
             },
 
             data: {
-                mainImageUrl: "nike-soccer-camps-ucsc-18.jpg",
-                prototypeImageUrl: "21Pd3+4L8HL._AC_UL160_SR160,160_.jpg",
-                annotations: [],
-                mturkTaskAccepted: !simpleamt.isPreview()
+                mainImageUrl: "http://media.ussportscamps.com/assets/camps/soccer/slideshow/nike-soccer-camps-ucsc-18.jpg",
+                prototypeImageUrl: "http://ecx.images-amazon.com/images/I/21Pd3+4L8HL._AC_UL160_SR160,160_.jpg",
+                mturkPreview: true,
             },
         });
-        debugger;
+
     </script>
 </body>
 

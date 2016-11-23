@@ -58,13 +58,13 @@
             </div>
             <div class="ten columns">
                 <h6>in this image <b>&#8681;</b> and draw boxes around the matching items</h6>
-                <annotated-image v-on:delete-annotation="onDeleteAnnotation" v-on:click="addAnnotation" v-bind:url="mainImageUrl" v-bind:annotations="annotations"></annotated-image>
+                <annotated-image v-bind:url="mainImageUrl" ></annotated-image>
                 <br>
                 <br>
                 <form id='results-form' method='post' action='dummy' accept-charset="utf-8" enctype="application/x-www-form-urlencoded" class='text-center'>
                     <input type='hidden' value='' name='assignmentId' id='assignmentId' />
                     <input type='hidden' value='hello' name='output' id='output' />
-                    <input type='submit' class='button-primary' id='submit-btn' v-bind:value="submitButtonMessage()" v-bind:disabled="mturkPreview"/>
+                    <input type='submit' class='button-primary' id='submit-btn' v-on:click="onSubmitClick" v-bind:value="submitButtonMessage()" v-bind:disabled="mturkPreview"/>
                 </form>
 
             </div>
@@ -76,6 +76,7 @@
     {% include "simpleamtjs.html" %}
 
     <script>
+
         // Will return w, nw, n, ne, e, se, s, sw for the eight borders,
         // n for inside, or "" when current location not in `dirs`.
         function whichborder(mousexy, elem_xywh) {
@@ -143,6 +144,7 @@
                     }
                     return -1;
                 },
+
                 getHoveredAnnotationRegion: function(xy) {
                     var region = "O";
                     var i = this.annotations.length - 1;
@@ -163,6 +165,9 @@
                     };
                 },
 
+                updateAnnotations: function() {
+                    bus.annotations = this.annotations;
+                },
 
                 handleDeleteAnnotation: function(target, event) {
                     this.annotations = this.annotations.filter(function(a, i) {
@@ -180,6 +185,7 @@
                     };
                     this.annotations.push(bbox);
                     this.mouse_down_target = this.annotations.length - 1;
+                    bus.annotations = this.annotations;
                 },
 
                 handleMouseMove: function(event) {
@@ -206,8 +212,9 @@
                         }
                     }
 
-                    this.mouse_x = event.offsetX;
-                    this.mouse_y = event.offsetY;
+                    // udpate annotations
+                    this.updateAnnotations();
+
 
                     // hover events
                     console.log(event.target.tagName);
@@ -231,6 +238,10 @@
                     } else {
                         this.cursor = region + "-resize";
                     }
+
+                    this.mouse_x = event.offsetX;
+                    this.mouse_y = event.offsetY;
+
 
                 },
 
@@ -369,31 +380,38 @@
                 ]);
             }
         });
+
+        var bus = new Vue({
+            data: {
+                annotations: []
+            }
+        });
         var app = new Vue({
             el: "#app",
             methods: {
-                addAnnotation: function(event) {
-                    this.annotations.push({
-                        x: .5 + Math.random() * .1,
-                        y: .5 + Math.random() * .1,
-                        width: .1,
-                        height: .1,
-                        interactive: false
-                    });
-                },
-                onDeleteAnnotation: function(target, event) {
-                    this.annotations = this.annotations.filter(function(a, i) {
-                        return i != target.index;
-                    });
-                },
                 submitButtonMessage: function() {
                     if (this.mturkPreview) {
                         return "You must accept the HIT to submit results";
+                    } else if (bus.annotations.length == 0) {
+                        return "Submit: no matching logos";
                     } else {
-                        return "Submit";
+                        return "Submit: " + bus.annotations.length + " bounding boxes";
                     }
+                },
+                onSubmitClick: function(event) {
+                    var output = {
+                        question: {
+                            templates: [this.prototypeImageUrl],
+                            photo: this.mainImageUrl
+                        },
+                        answer: {
+                            annotations: bus.annotations,
+                        }
+                    };
+                    var outputStr = JSON.stringify(output);
+                    simpleamt.setOutput(outputStr);
+                    console.log(JSON.stringify(output, null, 4));
                 }
-
             },
             mounted: function() {
                 console.log("mturk in preview mode = " + simpleamt.isPreview());
@@ -404,20 +422,16 @@
 
                     // setup input
                     var input = simpleamt.getInput();
-                    this.prototypeImageUrl = input.prototype;
+                    this.prototypeImageUrl = input["prototype"];
                     this.mainImageUrl = input.image;
                     this.mturkPreview = false;
                 }
             },
 
             data: {
-                // mainImageUrl: "nike-soccer-camps-ucsc-18.jpg",
-                // prototypeImageUrl: "21Pd3+4L8HL._AC_UL160_SR160,160_.jpg",
                 mainImageUrl: "http://media.ussportscamps.com/assets/camps/soccer/slideshow/nike-soccer-camps-ucsc-18.jpg",
                 prototypeImageUrl: "http://ecx.images-amazon.com/images/I/21Pd3+4L8HL._AC_UL160_SR160,160_.jpg",
-                annotations: [],
                 mturkPreview: true,
-
             },
         });
 
