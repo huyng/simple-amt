@@ -57,7 +57,7 @@
                 <center><img style="max-width:100px; max-height:100px; border: 1px solid #ddd" v-bind:src="prototypeImageUrl" alt="" /></center>
             </div>
             <div class="ten columns">
-                <h6>in this image <b>&#8681;</b> and draw boxes around the matching items</h6>
+                <h6>in this image <b>&#8681;</b> and draw boxes around the matching items. Your labels will be checked by other turkers</h6>
                 <annotated-image v-bind:url="mainImageUrl" ></annotated-image>
                 <br>
                 <br>
@@ -454,18 +454,15 @@
                     }
                 },
                 onSubmitClick: function(event) {
-                    var output = {
-                        question: {
-                            templates: [this.prototypeImageUrl],
-                            photo: this.mainImageUrl
-                        },
-                        answer: {
+                    var response = {
+                        input: input,
+                        output: {
                             annotations: bus.annotations,
                         }
                     };
-                    var outputStr = JSON.stringify(output);
-                    simpleamt.setOutput(outputStr);
-                    console.log(JSON.stringify(output, null, 4));
+                    var responseStr = JSON.stringify(response);
+                    simpleamt.setOutput(responseStr);
+                    console.log(JSON.stringify(response, null, 4));
                 }
             },
             mounted: function() {

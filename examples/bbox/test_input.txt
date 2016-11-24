@@ -1,0 +1,2 @@
+{"brand": "nike", "image":"http://photos1.blogger.com/blogger/353/70/1600/nike_billboard3.jpg", "prototype": "http://ecx.images-amazon.com/images/I/21Pd3+4L8HL._AC_UL160_SR160,160_.jpg"}
+{"brand": "nike", "image":"http://media.ussportscamps.com/assets/camps/soccer/slideshow/nike-soccer-camps-ucsc-18.jpg", "prototype": "http://ecx.images-amazon.com/images/I/21Pd3+4L8HL._AC_UL160_SR160,160_.jpg"}
